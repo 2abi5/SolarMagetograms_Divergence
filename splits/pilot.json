@@ -1,0 +1,174 @@
+{
+ "run": "pilot",
+ "seed": 0,
+ "fractions": [
+  0.7,
+  0.15,
+  0.15
+ ],
+ "grouping": "HARPs sharing a nonzero NOAA_AR are merged (transitively); otherwise one group per HARPNUM",
+ "splits": {
+  "train": {
+   "groups": [
+    "harp:372",
+    "harp:379",
+    "harp:390",
+    "noaa:11150",
+    "noaa:11153",
+    "noaa:11155",
+    "noaa:11157",
+    "noaa:11158",
+    "noaa:11159",
+    "noaa:11160"
+   ],
+   "harps": [
+    355,
+    358,
+    362,
+    364,
+    366,
+    371,
+    372,
+    377,
+    379,
+    384,
+    390,
+    392,
+    394
+   ],
+   "pairs": 740,
+   "patches": 114091
+  },
+  "val": {
+   "groups": [
+    "harp:357",
+    "harp:378",
+    "harp:380",
+    "noaa:11152",
+    "noaa:11154",
+    "noaa:11156",
+    "noaa:11164"
+   ],
+   "harps": [
+    357,
+    359,
+    361,
+    367,
+    368,
+    378,
+    380,
+    393
+   ],
+   "pairs": 348,
+   "patches": 24908
+  },
+  "test": {
+   "groups": [
+    "harp:356",
+    "harp:369",
+    "harp:381"
+   ],
+   "harps": [
+    356,
+    369,
+    381
+   ],
+   "pairs": 170,
+   "patches": 24605
+  }
+ },
+ "patch_fraction": {
+  "train": 0.6974,
+  "val": 0.1522,
+  "test": 0.1504
+ },
+ "groups": {
+  "harp:356": [
+   356
+  ],
+  "harp:357": [
+   357
+  ],
+  "harp:369": [
+   369
+  ],
+  "harp:372": [
+   372
+  ],
+  "harp:378": [
+   378
+  ],
+  "harp:379": [
+   379
+  ],
+  "harp:380": [
+   380
+  ],
+  "harp:381": [
+   381
+  ],
+  "harp:390": [
+   390
+  ],
+  "noaa:11150": [
+   355,
+   358,
+   394
+  ],
+  "noaa:11152": [
+   361
+  ],
+  "noaa:11153": [
+   362,
+   392
+  ],
+  "noaa:11154": [
+   368
+  ],
+  "noaa:11155": [
+   366
+  ],
+  "noaa:11156": [
+   367
+  ],
+  "noaa:11157": [
+   364
+  ],
+  "noaa:11158": [
+   377
+  ],
+  "noaa:11159": [
+   371
+  ],
+  "noaa:11160": [
+   384
+  ],
+  "noaa:11164": [
+   359,
+   393
+  ]
+ },
+ "shared_noaa": {},
+ "returning_links": [
+  [
+   355,
+   394
+  ],
+  [
+   358,
+   394
+  ],
+  [
+   359,
+   393
+  ],
+  [
+   362,
+   392
+  ]
+ ],
+ "largest_train_region": {
+  "harpnum": 384,
+  "share_of_train_patches": 0.2994
+ }
+}

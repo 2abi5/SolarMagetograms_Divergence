@@ -1,0 +1,31 @@
+exp: V_U_E2
+stage: pilot
+data_dir: data/pilot
+split: splits/pilot.json
+stats: data/pilot/stats.json
+out_dir: results/pilot/V_U_E2
+model:
+  name: unet
+  kwargs:
+    in_channels: 4
+loss:
+  weights:
+    mse: 1.0
+    grad: 5.0
+    hist: 0.001
+    ssim: 0.0005
+    div: 0.0
+  div_mode: match
+  hist_mode: tv
+train:
+  batch_size: 64
+  lr: 0.0001
+  max_epochs: 100
+  patience: 10
+  seed: 0
+  num_workers: 4
+  sampler: auto
+  max_share: 0.25
+data:
+  geometry: data/pilot/geometry_lr
+  augment: true

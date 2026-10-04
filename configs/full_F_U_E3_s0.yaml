@@ -1,0 +1,42 @@
+exp: F_U_E3_s0
+stage: full
+data_dir: data/full
+split: splits/full.json
+stats: data/full/stats.json
+out_dir: results/full/F_U_E3_s0
+model:
+  name: unet
+  kwargs:
+    in_channels: 4
+loss:
+  weights:
+    mse: 1.0
+    grad: 5.0
+    hist: 0.0
+    ssim: 0.0005
+    div: 0.01
+  div_mode: match_ms
+  hist_mode: tv
+  div_scales:
+  - 1.0
+  - 2.0
+  - 4.0
+  div_scale_norm:
+  - 5.4058171934157446e-05
+  - 1.7826250339002107e-05
+  - 6.7829719306539295e-06
+train:
+  batch_size: 64
+  lr: 0.0001
+  max_epochs: 100
+  patience: 10
+  seed: 0
+  num_workers: 4
+  sampler: auto
+  max_share: 0.25
+  samples_per_epoch: 131072
+data:
+  mode: regions
+  geometry: data/full/geometry_lr
+  augment: true
+  val_every: 3

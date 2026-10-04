@@ -1,0 +1,35 @@
+exp: E4_ms_l0.001
+stage: pilot
+data_dir: data/pilot
+split: splits/pilot.json
+stats: data/pilot/stats.json
+out_dir: results/pilot/E4_ms_l0.001
+model:
+  name: highresnet
+  kwargs: {}
+loss:
+  weights:
+    mse: 1.0
+    grad: 0.0
+    hist: 0.0
+    ssim: 0.0
+    div: 0.001
+  div_mode: match_ms
+  hist_mode: tv
+  div_scales:
+  - 1.0
+  - 2.0
+  - 4.0
+  div_scale_norm:
+  - 6.686009782580015e-05
+  - 2.491732969982744e-05
+  - 9.313024666831066e-06
+train:
+  batch_size: 64
+  lr: 0.0001
+  max_epochs: 100
+  patience: 10
+  seed: 0
+  num_workers: 4
+  sampler: auto
+  max_share: 0.25
