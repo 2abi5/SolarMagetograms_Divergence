@@ -74,10 +74,35 @@ Disk space:
 JSOC reprocesses data occasionally, so a new download can differ slightly from ours. The splits we used
 are in `splits/`.
 
+## Cycle-23 keyword record (`scripts/c23_*.py`)
+
+The frozen super-resolution model is also applied to the SOHO/MDI SMARP archive to build a
+SHARP-format vector keyword record for Solar Cycle 23. Those scripts are independent of the
+pixel-level study above and read/write their own `results/full/` subtrees.
+
+| Script | Does |
+|---|---|
+| `c23_build.py` | SMARP download, geometry probe, and keyword extraction over the Cycle-23 sample |
+| `c23_features.py` | keyword time series of the frozen models on the 2010-2011 overlap regions |
+| `c23_screening.py` | test-retest reliability + truth agreement; the column screen and its weights |
+| `c23_validation.py` | reliability replication and cross-cycle regime matching |
+| `c23_physics_checks.py` | flux-decay law, flux-flare scaling, butterfly sampling |
+| `c23_benchmark.py` | 24 h >=M1.0 flare-forecasting benchmark (vector vs merged LOS) |
+| `c23_hybrid_benchmark.py` | substitution and mixed real/reconstructed training arms |
+| `c23_clustering.py` | DTW k-medoids over keyword trajectories |
+| `c23_external.py` | GOES/SRS matching and external cluster validation |
+| `c23_intensive_calibration.py` | calibrated estimator for the size-free per-flux ratios |
+| `c23_intensive_clustering.py` | clustering on the calibrated ratios, with stability checks |
+| `c23_extra_checks.py`, `c23_supplementary_checks.py` | held-out screening, flux-rank, helicity rule, instrument eras, out-of-distribution bound |
+| `c23_mixing_figure.py` | the mixing violin figure |
+| `c23_sharp_harvest.py`, `c23_dataset_docs.py` | SHARP-era header harvest; dataset documentation |
+
+`sr/sharp_keywords.py` implements the 13 vector SHARP keywords used throughout.
+
 ## Reproducing the paper
 
 ```bash
-JSOC_EMAIL=you@example.com bash scripts/run_pilot.sh   # pilot: Figure 1, Tables 4-5, pixel-level loss sweep
+JSOC_EMAIL=you@example.com bash scripts/run_pilot.sh   # pilot: Figure 1, Tables 5-6, pixel-level loss sweep
 JSOC_EMAIL=you@example.com bash scripts/run_full.sh    # full year: 24 runs (~60 GPU-hours), val + test evaluation, tests
 
 python paper/scripts/make_tables.py                     # every number and table -> paper/tables/
@@ -91,15 +116,15 @@ against the hypothesis-test outputs of step 5 of `run_full.sh`. It stops if any 
 
 | Paper item | Produced by | Reads |
 |---|---|---|
-| Figure 1, Table 4 (reliability of $\mathrm{div}_h$) | `scripts/div_snr_by_scale.py` | `data/pilot/div_snr_by_scale.json` |
+| Figure 1, Table 5 (reliability of $\mathrm{div}_h$) | `scripts/div_snr_by_scale.py` | `data/pilot/div_snr_by_scale.json` |
 | Pilot pixel-level divergence loss | `sr/evaluate.py` | `results/pilot/eval_val/` |
-| Table 5 (input setup) | `scripts/eval_v2.py` | `results/pilot/eval_val_v2_ablation/` |
-| Tables 1, 6 (test, validation) | `scripts/eval_v2.py` | `results/full/eval_{test,val}_s*/` |
+| Table 6 (input setup) | `scripts/eval_v2.py` | `results/pilot/eval_val_v2_ablation/` |
+| Tables 1, 7 (test, validation) | `scripts/eval_v2.py` | `results/full/eval_{test,val}_s*/` |
 | Table 2, Figure 3 (paired tests, ablation) | `scripts/eval_v2.py`, `scripts/{full,ablation}_hypotheses.py` | `results/full/eval_*_s*/`, `results/full/hypotheses_*.json` |
-| Figure 4, Table 7 (gain by scale) | `scripts/eval_v2.py` | `div_by_scale_per_harp.csv` in `results/full/eval_*_s*/` |
-| Table 3 (loss weights) | `configs/` | — |
-| Table 8 (small confined-flux regions) | `scripts/eval_small_flux.py` | `results/full/eval_small_flux/` |
-| Table 9 (training) | `sr/train.py` | `results/full/*/meta.json` |
+| Figure 4, Table 8 (gain by scale) | `scripts/eval_v2.py` | `div_by_scale_per_harp.csv` in `results/full/eval_*_s*/` |
+| Table 4 (loss weights) | `configs/` | — |
+| Table 9 (small confined-flux regions) | `scripts/eval_small_flux.py` | `results/full/eval_small_flux/` |
+| Table 3 (training) | `sr/train.py` | `results/full/*/meta.json` |
 | Figures 2, 5 (maps) | `paper/scripts/make_map_figure.py` | `results/full/F_U_E{1,2,3}_s0/best.pt`, `data/full/` |
 
 ## Notes
