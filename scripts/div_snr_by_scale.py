@@ -37,8 +37,8 @@ SIGMAS = (0.0, 1.0, 2.0, 4.0, 8.0)
 STRONG = (None, 200.0, 500.0, 1000.0)
 
 
-def smoothed_div(hr, sigma, norm=NORM, min_weight=0.95):
-    """div_h (G/Mm, interior pixels) of Bp, Bt after NaN-aware Gaussian smoothing,
+def _smoothed_derivative(hr, sigma, physical, norm=NORM, min_weight=0.95):
+    """`physical(field)` (interior pixels) of Bp, Bt after NaN-aware Gaussian smoothing,
     and the interior validity mask (pixel and 4 neighbours finite, and at least
     `min_weight` of the Gaussian weight on valid pixels)."""
     hr = np.asarray(hr, np.float64)
@@ -52,13 +52,28 @@ def smoothed_div(hr, sigma, norm=NORM, min_weight=0.95):
     else:
         bp, bt = hr[0], hr[1]
     field = np.stack([np.where(valid, bp, 0.0), np.where(valid, bt, 0.0), np.zeros_like(bp)])
-    return ph.div_h_physical(field, norm=norm), ph.interior_valid(valid)
+    return physical(field, norm=norm), ph.interior_valid(valid)
 
 
-def pair_moments(a, b, sigma, strong_gauss=None, norm=NORM):
-    """Sums for pooled statistics of div_h(a) and div_h(b) at scale sigma."""
-    da, va = smoothed_div(a, sigma, norm)
-    db, vb = smoothed_div(b, sigma, norm)
+def smoothed_div(hr, sigma, norm=NORM, min_weight=0.95):
+    """Horizontal divergence div_h (G/Mm) of the smoothed Bp, Bt, with its interior validity mask."""
+    return _smoothed_derivative(hr, sigma, ph.div_h_physical, norm, min_weight)
+
+
+def smoothed_jz(hr, sigma, norm=NORM, min_weight=0.95):
+    """Vertical current J_z = (curl B)_z (mA/m^2) of the smoothed Bp, Bt, with its mask (Phase 9)."""
+    return _smoothed_derivative(hr, sigma, ph.jz_physical, norm, min_weight)
+
+
+QUANTITIES = {"div": smoothed_div, "jz": smoothed_jz}
+
+
+def pair_moments(a, b, sigma, strong_gauss=None, norm=NORM, quantity="div"):
+    """Sums for pooled statistics of the smoothed divergence (quantity="div") or vertical
+    current (quantity="jz") of frames a and b at scale sigma."""
+    smooth = QUANTITIES[quantity]
+    da, va = smooth(a, sigma, norm)
+    db, vb = smooth(b, sigma, norm)
     sel = va & vb
     if strong_gauss is not None:
         babs = np.sqrt(np.nansum(np.asarray(a, np.float64) ** 2, axis=0))[1:-1, 1:-1] * norm
@@ -118,6 +133,8 @@ def main():
     ap.add_argument("--run", required=True)
     ap.add_argument("--data_root", default=os.path.join(ROOT, "data"))
     ap.add_argument("--split", default=None)
+    ap.add_argument("--quantity", choices=tuple(QUANTITIES), default="div",
+                    help="div: horizontal divergence (G/Mm); jz: vertical current (mA/m^2; Phase 9)")
     args = ap.parse_args()
     run_dir = os.path.join(args.data_root, args.run)
     split = args.split or os.path.join(ROOT, "splits", f"{args.run}.json")
@@ -126,15 +143,17 @@ def main():
     rows = []
     for thr in STRONG:
         for s in SIGMAS:
-            r = pooled([pair_moments(a, b, s, strong_gauss=thr) for _, _, a, b in pairs])
+            r = pooled([pair_moments(a, b, s, strong_gauss=thr, quantity=args.quantity) for _, _, a, b in pairs])
             rows.append({"pixels": "all" if thr is None else f"|B|>{thr:g}G", "sigma_px": s,
                          "sigma_mm": round(s * ph.pixel_scale_mm(), 3), **r})
     df = pd.DataFrame(rows)
-    out = {"run": args.run, "n_pairs": len(pairs), "skipped": skipped,
-           "note": "corr = frame-to-frame (12 min) correlation of div_h at each scale; "
-                   "SNR = sqrt(corr/(1-corr)); evolution counts as noise (conservative)",
+    units = {"div": "G/Mm", "jz": "mA/m^2"}[args.quantity]
+    out = {"run": args.run, "quantity": args.quantity, "units": units, "n_pairs": len(pairs), "skipped": skipped,
+           "note": f"corr = frame-to-frame (12 min) correlation of the smoothed {args.quantity} at each scale; "
+                   f"SNR = sqrt(corr/(1-corr)); evolution counts as noise (conservative); "
+                   f"the *_g_per_mm columns are in {units}",
            "rows": df.to_dict(orient="records")}
-    with open(os.path.join(run_dir, "div_snr_by_scale.json"), "w") as f:
+    with open(os.path.join(run_dir, f"{args.quantity}_snr_by_scale.json"), "w") as f:
         json.dump(out, f, indent=1, default=str)
     pd.set_option("display.width", 200)
     print(df[["pixels", "sigma_px", "sigma_mm", "n", "mean_abs_div_g_per_mm", "signal_rms_g_per_mm",

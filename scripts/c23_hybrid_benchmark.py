@@ -619,6 +619,78 @@ def cmd_deploy(a):
           f"sens_overlap_drop_w1 TSS {arms['sens_overlap_drop_w1']['tss']:.4f}")
 
 
+def cmd_repeat(a):
+    """Is the mixing effect real or a lucky split? Two stress tests (phase_14 section 1.2
+    addendum): (A) several time boundaries, the operationally meaningful split; (B) many
+    random NOAA-region-disjoint splits of the real era. Reports mean +- sd of the paired
+    delta TSS of mixing vs real-only, so the sign can be judged against its own spread."""
+    from sklearn.model_selection import GroupShuffleSplit
+    flares = load_flares(years=range(1996, 2017))
+    era = sharp_era_frames(SHARP_ERA)
+    wins = windows(era, VEC_B, flares)
+    syn = windows(vec_frames_c23(C23_FEATURES), VEC_B, flares)
+    syn = syn[syn.t_end < pd.Timestamp(C23_TRAIN_CUT)].copy()
+    SY = prep(syn, "synC23", "T")
+    fc = cols(VEC_B)
+    out = {"design": "phase_14 1.2 addendum: repeated splits for the mixing effect",
+           "syn_pool": [len(syn), int(syn.label.sum())], "A_time_boundaries": {},
+           "B_random_region_splits": {}}
+
+    def arm_delta(TR, TE, weights):
+        """paired dTSS of each mixed arm vs real-only, on shared bootstrap resamples."""
+        preds, pts = {}, {}
+        p0, pte0, thr0 = fit_predict(TR, TE, fc)
+        preds["w0"], pts["w0"] = (pte0, thr0), p0
+        for w in weights:
+            pw, ptew, thrw = fit_predict(pd.concat([TR, SY], ignore_index=True), TE, fc, w_syn=w)
+            preds[f"w{w}"], pts[f"w{w}"] = (ptew, thrw), pw
+        res, _ = boot_all(TE, preds, n_boot=1000)
+        return ({f"w{w}": paired_delta(res, f"w{w}", "w0") for w in weights},
+                {k: v["tss"] for k, v in pts.items()})
+
+    WEIGHTS = (0.25, 1.0)
+    # (A) time boundaries
+    for b in ("2012-12-31", "2013-12-31", "2014-12-31", "2015-12-31"):
+        tr, te, drop = split_real(wins, b)
+        if len(te) < 200 or te.label.sum() < 15 or tr.label.sum() < 15:
+            print(f"[A] {b}: too few, skipped ({len(tr)}/{int(tr.label.sum())} -> "
+                  f"{len(te)}/{int(te.label.sum())})"); continue
+        d, tss = arm_delta(prep(tr, "real", "H"), prep(te, "real", "H"), WEIGHTS)
+        out["A_time_boundaries"][b] = {"counts": {"train": [len(tr), int(tr.label.sum())],
+                                                  "test": [len(te), int(te.label.sum())]},
+                                       "tss": tss, "deltas": d}
+        print(f"[A] boundary {b}: real-only TSS {tss['w0']:.3f} | "
+              + " | ".join(f"w={w} dTSS {d[f'w{w}']['dtss']:+.3f} "
+                           f"{[round(x,3) for x in d[f'w{w}']['dtss_ci']]}" for w in WEIGHTS))
+    # (B) random region-disjoint splits
+    acc = {f"w{w}": [] for w in WEIGHTS}; base = []
+    gss = GroupShuffleSplit(n_splits=a.n_splits, test_size=0.3, random_state=0)
+    grp = wins.noaa_ar.to_numpy()
+    for i, (itr, ite) in enumerate(gss.split(wins, wins.label, groups=grp)):
+        tr, te = wins.iloc[itr], wins.iloc[ite]
+        if te.label.sum() < 10 or tr.label.sum() < 10:
+            continue
+        d, tss = arm_delta(prep(tr, "real", "H"), prep(te, "real", "H"), WEIGHTS)
+        base.append(tss["w0"])
+        for w in WEIGHTS:
+            acc[f"w{w}"].append(d[f"w{w}"]["dtss"])
+        if (i + 1) % 5 == 0:
+            print(f"  [B] {i+1}/{a.n_splits}", flush=True)
+    out["B_random_region_splits"] = {
+        "n_splits": len(base),
+        "real_only_tss": {"mean": float(np.mean(base)), "sd": float(np.std(base))},
+        "delta_tss": {k: {"mean": float(np.mean(v)), "sd": float(np.std(v)),
+                          "n_negative": int(sum(1 for x in v if x < 0)), "n": len(v)}
+                      for k, v in acc.items()}}
+    b = out["B_random_region_splits"]
+    print(f"\n[B] {b['n_splits']} region-disjoint splits: real-only TSS "
+          f"{b['real_only_tss']['mean']:.3f} +- {b['real_only_tss']['sd']:.3f}")
+    for k, v in b["delta_tss"].items():
+        print(f"    {k}: dTSS {v['mean']:+.3f} +- {v['sd']:.3f}  "
+              f"({v['n_negative']}/{v['n']} splits negative)")
+    save("hybrid_repeat.json", out)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -632,6 +704,9 @@ def main(argv=None):
     t.set_defaults(fn=cmd_tuned)
     g2 = sub.add_parser("augment")
     g2.set_defaults(fn=cmd_augment)
+    rp = sub.add_parser("repeat")
+    rp.add_argument("--n_splits", type=int, default=30)
+    rp.set_defaults(fn=cmd_repeat)
     d = sub.add_parser("deploy")
     d.add_argument("--n_boot", type=int, default=2000)
     d.set_defaults(fn=cmd_deploy)

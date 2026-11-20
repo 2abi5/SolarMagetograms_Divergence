@@ -34,7 +34,6 @@ The code learns to map SOHO/MDI line-of-sight magnetograms to SDO/HMI SHARP vect
 | `scripts/run_pilot.sh`, `scripts/run_full.sh` | The complete pilot and full-year pipelines (download → train → evaluate → test) |
 | `configs/` | Every configuration used: `full_*` (24 full-year runs) and `pilot_*` |
 | `splits/` | The splits used in the paper (HARP numbers per split) |
-| `paper/scripts/` | Regenerate the paper's tables, numbers and figures from `results/` |
 | `tests/` | Unit tests (physics sign conventions, units, masks, loss gradients, splits, pipeline) |
 
 Run names:
@@ -96,6 +95,8 @@ pixel-level study above and read/write their own `results/full/` subtrees.
 | `c23_extra_checks.py`, `c23_supplementary_checks.py` | held-out screening, flux-rank, helicity rule, instrument eras, out-of-distribution bound |
 | `c23_mixing_figure.py` | the mixing violin figure |
 | `c23_sharp_harvest.py`, `c23_dataset_docs.py` | SHARP-era header harvest; dataset documentation |
+| `c23_skill_scores.py` | verification suite at two operating points (max TSS and max HSS2) and the Bobra & Couvidat point-in-time replication |
+| `c23_bobra_harvest.py` | SHARP header harvest for the point-in-time comparison |
 
 `sr/sharp_keywords.py` implements the 13 vector SHARP keywords used throughout.
 
@@ -104,15 +105,9 @@ pixel-level study above and read/write their own `results/full/` subtrees.
 ```bash
 JSOC_EMAIL=you@example.com bash scripts/run_pilot.sh   # pilot: Figure 1, Tables 5-6, pixel-level loss sweep
 JSOC_EMAIL=you@example.com bash scripts/run_full.sh    # full year: 24 runs (~60 GPU-hours), val + test evaluation, tests
-
-python paper/scripts/make_tables.py                     # every number and table -> paper/tables/
-python paper/scripts/make_figures.py                    # Figures 1, 3, 4 -> paper/figures/out/
-CUDA_VISIBLE_DEVICES="" python paper/scripts/make_map_figure.py   # Figures 2, 5 (seed-0 models, CPU)
 ```
 
 Both shell scripts can be stopped and re-run. They skip finished days, weeks and training runs.
-`make_tables.py` recomputes every statistic from the per-region evaluation outputs and checks it
-against the hypothesis-test outputs of step 5 of `run_full.sh`. It stops if any value disagrees.
 
 | Paper item | Produced by | Reads |
 |---|---|---|
@@ -125,7 +120,6 @@ against the hypothesis-test outputs of step 5 of `run_full.sh`. It stops if any 
 | Table 4 (loss weights) | `configs/` | — |
 | Table 9 (small confined-flux regions) | `scripts/eval_small_flux.py` | `results/full/eval_small_flux/` |
 | Table 3 (training) | `sr/train.py` | `results/full/*/meta.json` |
-| Figures 2, 5 (maps) | `paper/scripts/make_map_figure.py` | `results/full/F_U_E{1,2,3}_s0/best.pt`, `data/full/` |
 
 ## Notes
 
